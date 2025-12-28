@@ -1,19 +1,27 @@
 FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    DATA_DIR=/data \
-    APP_TZ=Europe/Berlin
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /srv/app
 
-WORKDIR /srv
-COPY requirements.txt /srv/requirements.txt
-RUN pip install --no-cache-dir -r /srv/requirements.txt
+# Dependencies
+COPY requirements.txt /srv/app/requirements.txt
+RUN pip install --no-cache-dir -r /srv/app/requirements.txt
 
-COPY app /srv/app
-COPY static /srv/static
+# App (so wie deine Logs es zeigen: /srv/app/main.py existiert)
+COPY app/ /srv/app/
+
+# Default tasks.json aus dem Repo ins Image legen (Quelle: repo-root/data/tasks.json)
+# (Falls du sie anders benannt hast, hier entsprechend anpassen.)
+COPY data/tasks.json /defaults/tasks.json
+
+# Entrypoint
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh \
+    && mkdir -p /data /config /defaults
 
 EXPOSE 9005
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9005"]
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "9005"]

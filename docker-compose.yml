@@ -1,18 +1,18 @@
-version: "3.8"
-
 services:
   tracker:
-    build: .
-    container_name: process-tracker-kiosk-tracker
+    build:
+      context: .
+    restart: unless-stopped
     ports:
       - "9005:9005"
     environment:
-      # App nutzt (laut deinem Trace) TASKS_PATH; wir setzen es explizit.
-      # Gleichzeitig stellen wir sicher, dass es auch bei Default /config/tasks.json funktioniert,
-      # weil wir ./data nach /config mounten.
+      TZ: Europe/Berlin
+      # Falls dein Code TASKS_PATH liest: okay. Falls nicht: stört nicht.
       TASKS_PATH: /config/tasks.json
+      # Falls dein Code DB_PATH liest: okay. Falls nicht: stört nicht.
+      DB_PATH: /data/tracker.db
     volumes:
-      # ✅ WICHTIG: Ordner mounten, nicht die einzelne Datei!
-      # So ist /config/tasks.json garantiert eine Datei (aus ./data/tasks.json im Repo)
-      - ./data:/config
-    restart: unless-stopped
+      - tracker_data:/data
+
+volumes:
+  tracker_data:
