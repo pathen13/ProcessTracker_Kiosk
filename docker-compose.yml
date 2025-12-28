@@ -1,0 +1,12 @@
+services:
+  kiosk-tracker:
+    build: .
+    container_name: kiosk-tracker
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+    environment:
+      - APP_TZ=Europe/Berlin
+      - DATA_DIR=/data

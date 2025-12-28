@@ -1,0 +1,10 @@
+[
+  {
+    "id": 1,
+    "technical_name": "swimming",
+    "tile_text": "Schwimmen gewesen?",
+    "success_text": "§current von $goal erreicht. Zu erledigen bis $deadline",
+    "deadline": "2026-12-31",
+    "goal": 26
+  }
+]
