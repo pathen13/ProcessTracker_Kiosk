@@ -3,7 +3,7 @@
 		"id": 1,
 		"technical_name": "swimming",
 		"tile_text": "Schwimmen gewesen?",
-		"success_text": "§current von $goal erreicht.<br>Zu erledigen bis $deadline",
+		"success_text": "§current von $goal erreicht.\nZu erledigen bis $deadline",
 		"deadline": "2026-12-31",
 		"goal": 26
 	},
@@ -11,7 +11,7 @@
 		"id": 2,
 		"technical_name": "hacking",
 		"tile_text": "HTB-Raum gehackt?",
-		"success_text": "§current von $goal erreicht.<br>Zu erledigen bis $deadline",
+		"success_text": "§current von $goal erreicht.\nZu erledigen bis $deadline",
 		"deadline": "2026-12-31",
 		"goal": 26
 	},
@@ -19,7 +19,7 @@
 		"id": 3,
 		"technical_name": "cooking",
 		"tile_text": "Neues Rezept probiert?",
-		"success_text": "§current von $goal erreicht.<br>Zu erledigen bis $deadline",
+		"success_text": "§current von $goal erreicht.\nZu erledigen bis $deadline",
 		"deadline": "2026-12-31",
 		"goal": 26
 	},
@@ -27,7 +27,7 @@
 		"id": 4,
 		"technical_name": "walking",
 		"tile_text": "26.000+ Schritte gemacht?",
-		"success_text": "§current von $goal erreicht.<br>Zu erledigen bis $deadline",
+		"success_text": "§current von $goal erreicht.\nZu erledigen bis $deadline",
 		"deadline": "2026-12-31",
 		"goal": 26
 	}
