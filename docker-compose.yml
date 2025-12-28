@@ -1,12 +1,16 @@
 services:
   kiosk-tracker:
     build: .
-    container_name: kiosk-tracker
     restart: unless-stopped
     ports:
       - "9005:9005"
-    volumes:
-      - ./data:/data
     environment:
       - APP_TZ=Europe/Berlin
       - DATA_DIR=/data
+      - TASKS_PATH=/config/tasks.json
+    volumes:
+      - kiosk_data:/data
+      - ./tasks.json:/config/tasks.json:ro
+
+volumes:
+  kiosk_data:

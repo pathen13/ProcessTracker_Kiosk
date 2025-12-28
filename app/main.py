@@ -15,7 +15,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 TZ = ZoneInfo(os.getenv("APP_TZ", "Europe/Berlin"))
 DATA_DIR = os.getenv("DATA_DIR", "/data")
 DB_PATH = os.path.join(DATA_DIR, "app.db")
-TASKS_PATH = os.path.join(DATA_DIR, "tasks.json")
+TASKS_PATH = os.getenv("TASKS_PATH", os.path.join(DATA_DIR, "tasks.json"))
 
 engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
