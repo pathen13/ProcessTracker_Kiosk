@@ -1,16 +1,20 @@
+version: "3.9"
+
 services:
-  kiosk-tracker:
-    build: .
+  tracker:
+    build:
+      context: .
     restart: unless-stopped
+
+    # Falls dein Uvicorn im Container auf einem anderen Port lauscht, hier anpassen:
     ports:
       - "9005:9005"
-    environment:
-      - APP_TZ=Europe/Berlin
-      - DATA_DIR=/data
-      - TASKS_PATH=/config/tasks.json
-    volumes:
-      - kiosk_data:/data
-      - ./tasks.json:/config/tasks.json:ro
 
-volumes:
-  kiosk_data:
+    environment:
+      - TZ=Europe/Berlin
+      - TASKS_PATH=/config/tasks.json
+
+    volumes:
+      # WICHTIG: Ordner mounten (nicht /config/tasks.json als einzelnes Volume)
+      - /opt/processtracker/config:/config
+      - /opt/processtracker/data:/data
