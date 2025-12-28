@@ -15,5 +15,5 @@ RUN pip install --no-cache-dir -r /srv/requirements.txt
 COPY app /srv/app
 COPY static /srv/static
 
-EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 9005
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9005"]

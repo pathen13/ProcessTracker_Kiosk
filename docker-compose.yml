@@ -4,7 +4,7 @@ services:
     container_name: kiosk-tracker
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "9005:9005"
     volumes:
       - ./data:/data
     environment:
