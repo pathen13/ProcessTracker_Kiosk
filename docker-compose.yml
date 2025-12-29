@@ -1,18 +1,21 @@
 services:
   tracker:
-    build:
-      context: .
+    build: .
+    container_name: process-tracker-kiosk-tracker
     restart: unless-stopped
     ports:
       - "9005:9005"
-    environment:
-      TZ: Europe/Berlin
-      # Falls dein Code TASKS_PATH liest: okay. Falls nicht: stört nicht.
-      TASKS_PATH: /config/tasks.json
-      # Falls dein Code DB_PATH liest: okay. Falls nicht: stört nicht.
-      DB_PATH: /data/tracker.db
+
+    # Named Volume -> Portainer-freundlich + persistent
     volumes:
-      - tracker_data:/data
+      - processtracker_data:/data
+
+    # Optional/robust: falls dein Code DATABASE_URL o.ä. aus ENV liest
+    environment:
+      - DATA_DIR=/data
+      - TASKS_PATH=/config/tasks.json
+      - DATABASE_URL=sqlite:////data/processtracker.db
+      - SQLALCHEMY_DATABASE_URL=sqlite:////data/processtracker.db
 
 volumes:
-  tracker_data:
+  processtracker_data:
