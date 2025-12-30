@@ -31,9 +31,9 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
   height: calc(100% - 52px);
   padding: 10px;
 
-  /* 10 Tiles pro Seite: 5 Spalten x 2 Zeilen */
+  /* 8 Tiles pro Seite: 4 Spalten x 2 Zeilen */
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: 10px;
 

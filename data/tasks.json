@@ -40,7 +40,7 @@
         "technical_name": "2026_weight",
         "task_type": "number_diff",
         "tile_text": "Gewicht eintragen",
-        "success_text": "§current von $goal erreicht. Zu erledigen bis $deadline",
+        "success_text": "§current von $goal erreicht.\nZu erledigen bis $deadline",
         "deadline": "2026-12-31",
         "goal": 124.00,
         "startvalue": 150.00
@@ -50,7 +50,7 @@
         "technical_name": "2026_cve",
         "task_type": "confirm",
         "tile_text": "CVE erfolgreich eingetragen?",
-        "success_text": "§current von $goal erreicht. Zu erledigen bis $deadline",
+        "success_text": "§current von $goal erreicht.\nZu erledigen bis $deadline",
         "deadline": "2026-12-31",
         "goal": 1
     },
@@ -59,7 +59,7 @@
         "technical_name": "2026_books",
         "task_type": "confirm",
         "tile_text": "Buch zuende gelesen?",
-        "success_text": "§current von $goal erreicht. Zu erledigen bis $deadline",
+        "success_text": "§current von $goal erreicht.\nZu erledigen bis $deadline",
         "deadline": "2026-12-31",
         "goal": 2
     }
