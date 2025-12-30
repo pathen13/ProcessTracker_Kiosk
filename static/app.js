@@ -17,17 +17,24 @@ const modalTitle = document.getElementById("modalTitle");
 const btnYes = document.getElementById("btnYes");
 const btnNo = document.getElementById("btnNo");
 
-let currentValue = null; // number_diff modal
+let currentValue = null;
+
+// ---------- Helpers ----------
+function escapeHTML(s) {
+  return String(s ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
 // ---------- Tap feedback ----------
 function triggerTapFeedback(tile, clientX, clientY) {
-  // flash
   tile.classList.remove("tapflash");
-  // force reflow to restart animation
-  void tile.offsetWidth;
+  void tile.offsetWidth; // restart animation
   tile.classList.add("tapflash");
 
-  // ripple
   const rect = tile.getBoundingClientRect();
   const x = (typeof clientX === "number") ? (clientX - rect.left) : rect.width / 2;
   const y = (typeof clientY === "number") ? (clientY - rect.top) : rect.height / 2;
@@ -41,9 +48,7 @@ function triggerTapFeedback(tile, clientX, clientY) {
   ripple.style.top = `${y}px`;
 
   tile.appendChild(ripple);
-  window.setTimeout(() => {
-    ripple.remove();
-  }, 500);
+  window.setTimeout(() => ripple.remove(), 500);
 }
 
 // ---------- Modal ----------
@@ -82,7 +87,7 @@ function openNumberModal(task) {
   currentValue = start;
 
   modalTitle.innerHTML = `
-    <div style="font-size:24px;margin-bottom:10px;">${task.tile_text}</div>
+    <div style="font-size:24px;margin-bottom:10px;">${escapeHTML(task.tile_text)}</div>
     <div class="modalField">
       <label>Aktueller Wert</label>
       <div class="modalRow">
@@ -149,7 +154,21 @@ function signFmt(x) {
   return (x >= 0 ? "+" : "") + x.toFixed(2);
 }
 
+// Title renderer with optional checkmark (only for "done today")
+function titleRowHTML(tileText, doneToday) {
+  return `
+    <div class="titleRow">
+      <div class="titleText">${escapeHTML(tileText)}</div>
+      ${doneToday ? `<div class="check">✓</div>` : ``}
+    </div>
+  `;
+}
+
 function numberDiffTitleHTML(t) {
+  // Always show tile_text (plus optional check if done today)
+  const header = titleRowHTML(t.tile_text, !!t.done_today);
+
+  // If we have values, show metrics underneath
   if (typeof t.latest_value === "number") {
     const aVal = (typeof t.start_minus_current === "number") ? signFmt(t.start_minus_current) : "—";
     const aClass = t.start_minus_current_class || "neutral";
@@ -158,13 +177,15 @@ function numberDiffTitleHTML(t) {
     const bClass = t.current_minus_goal_class || "neutral";
 
     return `
+      ${header}
       <div class="metrics">
-        <div class="metric ${aClass}">Start − Current: ${aVal}</div>
-        <div class="metric ${bClass}">Current − Ziel: ${bVal}</div>
+        <div class="metric ${aClass}">Bereits geschafft: ${escapeHTML(aVal)}</div>
+        <div class="metric ${bClass}">Noch übrig: ${escapeHTML(bVal)}</div>
       </div>
     `;
   }
-  return `${t.tile_text}`;
+
+  return header;
 }
 
 // ---------- Paging ----------
@@ -220,19 +241,17 @@ function render() {
   for (const t of visibleTasks) {
     const tile = document.createElement("div");
 
-    // ✅ number_diff: green when done_today OR achieved
+    // ✅ number_diff: green+locked when done_today OR achieved
     const isDone = (t.task_type === "number_diff")
       ? (!!t.done_today || !!t.achieved)
       : !!t.done_today;
 
-    // ✅ number_diff: locked when done_today OR achieved
     const actionDisabled = (t.task_type === "number_diff")
       ? (!!t.done_today || !!t.achieved)
       : !!t.done_today;
 
     tile.className = "tile" + (isDone ? " done" : "") + (!actionDisabled ? " clickable" : "");
 
-    // For ripple origin: remember last down coords
     let lastDown = null;
 
     tile.addEventListener("pointerdown", (e) => {
@@ -243,8 +262,6 @@ function render() {
 
     tile.addEventListener("click", () => {
       if (actionDisabled) return;
-
-      // In case click happens without pointerdown (rare), still show centered feedback
       if (!lastDown) triggerTapFeedback(tile);
 
       if (t.task_type === "number_diff") openNumberModal(t);
@@ -252,20 +269,25 @@ function render() {
     });
 
     const title = document.createElement("div");
-    title.className = "title";
+
     if (t.task_type === "number_diff") {
+      // includes tile_text + optional check + metrics
       title.innerHTML = numberDiffTitleHTML(t);
     } else {
-      title.textContent = t.done_today ? t.success_rendered : t.tile_text;
+      // ✅ Confirm: always tile_text + optional check (done_today)
+      title.innerHTML = titleRowHTML(t.tile_text, !!t.done_today);
     }
 
     const meta = document.createElement("div");
     meta.className = "meta";
+
     if (t.task_type === "number_diff") {
       const last = t.latest_day ? `Letzter Eintrag: ${t.latest_day}` : "Noch kein Eintrag";
       meta.textContent = `${last} • Ziel: ${fmt2(t.goal)} • Deadline: ${t.deadline}`;
     } else {
-      meta.textContent = `Fortschritt: ${t.current}/${Math.round(t.goal)} • Deadline: ${t.deadline}`;
+      // When done today -> show success_text content in meta (as originally intended)
+      if (t.done_today) meta.textContent = t.success_rendered || "";
+      else meta.textContent = `Fortschritt: ${t.current}/${Math.round(t.goal)} • Deadline: ${t.deadline}`;
     }
 
     tile.appendChild(title);
@@ -310,6 +332,7 @@ btnNo.addEventListener("click", async () => {
     await load();
     return;
   }
+
   closeModal();
 });
 

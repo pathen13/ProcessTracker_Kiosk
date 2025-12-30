@@ -54,11 +54,10 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
   touch-action: manipulation;
   user-select: none;
 
-  /* needed for ripple */
+  /* Ripple benötigt position/overflow */
   position: relative;
   overflow: hidden;
 
-  /* small visual stability */
   transform: translateZ(0);
 }
 
@@ -96,26 +95,42 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
   }
 }
 
-.tile .title {
+/* Title row + checkmark */
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.titleText {
   font-size: 16px;
   line-height: 1.1;
   white-space: pre-line;
 }
 
+.check {
+  font-size: 18px;
+  font-weight: 900;
+  color: #49d16a; /* green */
+  line-height: 1;
+}
+
+/* meta */
 .tile .meta {
   font-size: 12px;
   opacity: 0.85;
   margin-top: 8px;
+  white-space: pre-line;
 }
 
-/* Status: "done" = grün */
+/* Status: grün */
 .tile.done {
   background: #0f2a14;
   border-color: #1f6a2e;
 }
 
 /* number_diff metrics */
-.metrics { display: grid; gap: 4px; margin-top: 2px; }
+.metrics { display: grid; gap: 4px; margin-top: 6px; }
 .metric { font-size: 14px; font-weight: 800; }
 .metric.good { color: #49d16a; }
 .metric.bad  { color: #ff4d4d; }
