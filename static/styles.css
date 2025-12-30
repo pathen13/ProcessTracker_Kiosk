@@ -1,5 +1,11 @@
 * { box-sizing: border-box; }
-html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif; background: #111; color: #eee; }
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: system-ui, Arial, sans-serif;
+  background: #111;
+  color: #eee;
+}
 
 #topbar {
   display: flex;
@@ -31,7 +37,7 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
   height: calc(100% - 52px);
   padding: 10px;
 
-  /* 8 Tiles pro Seite: 4 Spalten x 2 Zeilen */
+  /* ✅ 4x2 */
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-rows: repeat(2, minmax(0, 1fr));
@@ -44,7 +50,7 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
   border-radius: 14px;
   border: 1px solid #2b2b2b;
   background: #1a1a1a;
-  padding: 10px;
+  padding: 12px;
   min-height: 0;
 
   display: flex;
@@ -54,9 +60,8 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
   touch-action: manipulation;
   user-select: none;
 
-  position: relative;   /* ripple */
-  overflow: hidden;     /* ripple */
-
+  position: relative; /* ripple */
+  overflow: hidden;   /* ripple */
   transform: translateZ(0);
 }
 
@@ -98,17 +103,17 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
 .titleRow {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .titleText {
-  font-size: 16px;
-  line-height: 1.1;
+  font-size: 18px;
+  line-height: 1.12;
   white-space: pre-line;
 }
 
 .check {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
   color: #49d16a;
   line-height: 1;
@@ -118,21 +123,21 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
 .ndGrid {
   display: grid;
   grid-template-columns: auto 1fr; /* Label | Value */
-  column-gap: 8px;
-  row-gap: 4px;
-  margin-top: 8px;
+  column-gap: 10px;
+  row-gap: 6px;
+  margin-top: 10px;
 }
 
 .ndLabel {
-  font-size: 13px;
+  font-size: 14px;
   opacity: 0.85;
   white-space: nowrap;
 }
 
 .ndValue {
-  font-size: 14px;
-  font-weight: 800;
-  justify-self: start; /* values aligned under each other */
+  font-size: 16px;
+  font-weight: 900;
+  justify-self: start; /* values start aligned */
 }
 
 /* Value coloring */
@@ -142,9 +147,9 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
 
 /* meta */
 .tile .meta {
-  font-size: 12px;
+  font-size: 14px;
   opacity: 0.85;
-  margin-top: 10px;
+  margin-top: 12px;
   white-space: pre-line;
 }
 

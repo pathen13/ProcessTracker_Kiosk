@@ -1,7 +1,7 @@
 let state = { tasks: [], today: null };
 let activeTask = null;
 
-const PAGE_SIZE = 8; // 5x2 Grid
+const PAGE_SIZE = 8; // ✅ 4x2
 let pageIndex = parseInt(localStorage.getItem("pageIndex") || "0", 10);
 
 const grid = document.getElementById("grid");
@@ -27,6 +27,10 @@ function escapeHTML(s) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function safeClass(c) {
+  return (c === "good" || c === "bad" || c === "neutral") ? c : "neutral";
 }
 
 // ---------- Tap feedback ----------
@@ -145,10 +149,6 @@ async function apiSetValue(taskId, value) {
 }
 
 // ---------- Formatting ----------
-function fmt2(x) {
-  return (typeof x === "number") ? x.toFixed(2) : "—";
-}
-
 function signFmt(x) {
   if (typeof x !== "number") return "—";
   return (x >= 0 ? "+" : "") + x.toFixed(2);
@@ -164,26 +164,26 @@ function titleRowHTML(tileText, doneToday) {
   `;
 }
 
-// Number-diff title + 2-row grid
+// Number-diff: header + requested 2x2 grid
 function numberDiffTitleHTML(t) {
   const header = titleRowHTML(t.tile_text, !!t.done_today);
 
   if (typeof t.latest_value !== "number") return header;
 
   const aVal = (typeof t.start_minus_current === "number") ? signFmt(t.start_minus_current) : "—";
-  const aClass = t.start_minus_current_class || "neutral";
+  const aClass = safeClass(t.start_minus_current_class);
 
   const bVal = (typeof t.current_minus_goal === "number") ? signFmt(t.current_minus_goal) : "—";
-  const bClass = t.current_minus_goal_class || "neutral";
+  const bClass = safeClass(t.current_minus_goal_class);
 
   return `
     ${header}
     <div class="ndGrid">
       <div class="ndLabel">Bereits geschafft:</div>
-      <div class="ndValue ${escapeHTML(aClass)}">${escapeHTML(aVal)}</div>
+      <div class="ndValue ${aClass}">${escapeHTML(aVal)}</div>
 
       <div class="ndLabel">Noch übrig:</div>
-      <div class="ndValue ${escapeHTML(bClass)}">${escapeHTML(bVal)}</div>
+      <div class="ndValue ${bClass}">${escapeHTML(bVal)}</div>
     </div>
   `;
 }
@@ -224,16 +224,19 @@ function paginate(allTasks) {
   const slice = allTasks.slice(start, start + PAGE_SIZE);
 
   const enabled = allTasks.length > PAGE_SIZE;
-  prevBtn.disabled = !enabled || pageIndex === 0;
-  nextBtn.disabled = !enabled || pageIndex >= totalPages() - 1;
-  pageInfoEl.textContent = enabled ? `Seite ${pageIndex + 1}/${totalPages()}` : "";
+
+  if (prevBtn) prevBtn.disabled = !enabled || pageIndex === 0;
+  if (nextBtn) nextBtn.disabled = !enabled || pageIndex >= totalPages() - 1;
+  if (pageInfoEl) pageInfoEl.textContent = enabled ? `Seite ${pageIndex + 1}/${totalPages()}` : "";
 
   return slice;
 }
 
 // ---------- Render ----------
 function render() {
-  dateEl.textContent = state.today ? `Heute: ${state.today}` : "…";
+  if (dateEl) dateEl.textContent = state.today ? `Heute: ${state.today}` : "…";
+  if (!grid) return;
+
   grid.innerHTML = "";
 
   const visibleTasks = paginate(state.tasks);
@@ -241,6 +244,7 @@ function render() {
   for (const t of visibleTasks) {
     const tile = document.createElement("div");
 
+    // number_diff: green+locked when done_today OR achieved
     const isDone = (t.task_type === "number_diff")
       ? (!!t.done_today || !!t.achieved)
       : !!t.done_today;
@@ -256,4 +260,150 @@ function render() {
     tile.addEventListener("pointerdown", (e) => {
       if (actionDisabled) return;
       lastDown = { x: e.clientX, y: e.clientY };
-      triggerTapFee
+      triggerTapFeedback(tile, e.clientX, e.clientY);
+    });
+
+    tile.addEventListener("click", () => {
+      if (actionDisabled) return;
+      if (!lastDown) triggerTapFeedback(tile);
+
+      if (t.task_type === "number_diff") openNumberModal(t);
+      else openConfirmModal(t);
+    });
+
+    const title = document.createElement("div");
+    if (t.task_type === "number_diff") {
+      title.innerHTML = numberDiffTitleHTML(t);
+    } else {
+      title.innerHTML = titleRowHTML(t.tile_text, !!t.done_today);
+    }
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+
+    if (t.task_type === "number_diff") {
+      // only deadline
+      meta.textContent = `Deadline: ${t.deadline}`;
+    } else {
+      // ✅ always show success text
+      meta.textContent = t.success_rendered || "";
+    }
+
+    tile.appendChild(title);
+    tile.appendChild(meta);
+    grid.appendChild(tile);
+  }
+
+  // Fill spacers to keep 4x2 stable
+  const missing = PAGE_SIZE - visibleTasks.length;
+  for (let i = 0; i < missing; i++) {
+    const spacer = document.createElement("div");
+    spacer.className = "tile";
+    spacer.style.visibility = "hidden";
+    grid.appendChild(spacer);
+  }
+}
+
+// ---------- Load ----------
+async function load() {
+  const res = await fetch("/api/tasks");
+  const data = await res.json();
+  state.today = data.today;
+  state.tasks = data.tasks;
+  render();
+}
+
+// ---------- Events ----------
+if (reloadBtn) reloadBtn.addEventListener("click", load);
+if (prevBtn) prevBtn.addEventListener("click", goPrevPage);
+if (nextBtn) nextBtn.addEventListener("click", goNextPage);
+
+if (modalBackdrop) {
+  modalBackdrop.addEventListener("click", (e) => {
+    if (e.target === modalBackdrop) closeModal();
+  });
+}
+
+if (btnNo) {
+  btnNo.addEventListener("click", async () => {
+    if (!activeTask) { closeModal(); return; }
+
+    if (activeTask.task_type === "confirm") {
+      await apiConfirm(activeTask.id, "no");
+      closeModal();
+      await load();
+      return;
+    }
+    closeModal();
+  });
+}
+
+if (btnYes) {
+  btnYes.addEventListener("click", async () => {
+    if (!activeTask) return;
+
+    if (activeTask.task_type === "number_diff") {
+      if (!Number.isFinite(currentValue)) return;
+      await apiSetValue(activeTask.id, currentValue);
+      closeModal();
+      await load();
+      return;
+    }
+
+    await apiConfirm(activeTask.id, "yes");
+    closeModal();
+    await load();
+  });
+}
+
+// ---------- Swipe (Touch) ----------
+(function enableSwipe() {
+  const MIN_X = 60;
+  const MAX_Y = 50;
+  const MAX_TIME = 600;
+
+  let startX = 0, startY = 0, startT = 0;
+  let tracking = false;
+
+  const target = document.getElementById("grid");
+  if (!target) return;
+
+  target.addEventListener("touchstart", (e) => {
+    if (!pagingEnabled()) return;
+    if (isModalOpen()) return;
+    if (!e.touches || e.touches.length !== 1) return;
+
+    const t = e.touches[0];
+    startX = t.clientX;
+    startY = t.clientY;
+    startT = Date.now();
+    tracking = true;
+  }, { passive: true });
+
+  target.addEventListener("touchend", (e) => {
+    if (!tracking) return;
+    tracking = false;
+
+    if (!pagingEnabled()) return;
+    if (isModalOpen()) return;
+
+    const dt = Date.now() - startT;
+    if (dt > MAX_TIME) return;
+
+    const changed = e.changedTouches && e.changedTouches[0];
+    if (!changed) return;
+
+    const dx = changed.clientX - startX;
+    const dy = changed.clientY - startY;
+
+    if (Math.abs(dy) > MAX_Y) return;
+    if (Math.abs(dx) < MIN_X) return;
+
+    if (dx < 0) goNextPage();
+    else goPrevPage();
+  }, { passive: true });
+})();
+
+// start
+load();
+setInterval(load, 60_000);
