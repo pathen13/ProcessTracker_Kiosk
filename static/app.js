@@ -1,17 +1,25 @@
 let state = { tasks: [], today: null };
 let activeTask = null;
 
+const PAGE_SIZE = 10; // 5x2 Grid
+let pageIndex = parseInt(localStorage.getItem("pageIndex") || "0", 10);
+
 const grid = document.getElementById("grid");
 const dateEl = document.getElementById("date");
+const pageInfoEl = document.getElementById("pageInfo");
+
 const reloadBtn = document.getElementById("reload");
+const prevBtn = document.getElementById("prevPage");
+const nextBtn = document.getElementById("nextPage");
 
 const modalBackdrop = document.getElementById("modalBackdrop");
 const modalTitle = document.getElementById("modalTitle");
 const btnYes = document.getElementById("btnYes");
 const btnNo = document.getElementById("btnNo");
 
-let currentValue = null; // number_diff modal value
+let currentValue = null; // number_diff modal
 
+// ---------- Modal ----------
 function closeModal() {
   activeTask = null;
   currentValue = null;
@@ -19,6 +27,10 @@ function closeModal() {
   btnYes.textContent = "Ja";
   btnNo.textContent = "Nein";
   modalBackdrop.classList.add("hidden");
+}
+
+function isModalOpen() {
+  return !modalBackdrop.classList.contains("hidden");
 }
 
 function openConfirmModal(task) {
@@ -78,6 +90,7 @@ function openNumberModal(task) {
   input.addEventListener("input", syncFromInput);
 }
 
+// ---------- API ----------
 async function apiConfirm(taskId, answer) {
   await fetch(`/api/tasks/${taskId}/confirm`, {
     method: "POST",
@@ -99,6 +112,7 @@ async function apiSetValue(taskId, value) {
   }
 }
 
+// ---------- Formatting ----------
 function fmt2(x) {
   return (typeof x === "number") ? x.toFixed(2) : "—";
 }
@@ -109,7 +123,6 @@ function signFmt(x) {
 }
 
 function numberDiffTitleHTML(t) {
-  // “wenn eingeloggt” => sobald es latest_value gibt, zwei Werte anzeigen
   if (typeof t.latest_value === "number") {
     const aVal = (typeof t.start_minus_current === "number") ? signFmt(t.start_minus_current) : "—";
     const aClass = t.start_minus_current_class || "neutral";
@@ -124,19 +137,62 @@ function numberDiffTitleHTML(t) {
       </div>
     `;
   }
-
   return `${t.tile_text}`;
 }
 
+// ---------- Paging ----------
+function pagingEnabled() {
+  return state.tasks.length > PAGE_SIZE;
+}
+
+function totalPages() {
+  return Math.max(1, Math.ceil(state.tasks.length / PAGE_SIZE));
+}
+
+function clampPageIndex() {
+  const tp = totalPages();
+  if (pageIndex < 0) pageIndex = 0;
+  if (pageIndex > tp - 1) pageIndex = tp - 1;
+  localStorage.setItem("pageIndex", String(pageIndex));
+}
+
+function goPrevPage() {
+  if (!pagingEnabled()) return;
+  pageIndex -= 1;
+  clampPageIndex();
+  render();
+}
+
+function goNextPage() {
+  if (!pagingEnabled()) return;
+  pageIndex += 1;
+  clampPageIndex();
+  render();
+}
+
+function paginate(allTasks) {
+  clampPageIndex();
+  const start = pageIndex * PAGE_SIZE;
+  const slice = allTasks.slice(start, start + PAGE_SIZE);
+
+  const enabled = allTasks.length > PAGE_SIZE;
+  prevBtn.disabled = !enabled || pageIndex === 0;
+  nextBtn.disabled = !enabled || pageIndex >= totalPages() - 1;
+  pageInfoEl.textContent = enabled ? `Seite ${pageIndex + 1}/${totalPages()}` : "";
+
+  return slice;
+}
+
+// ---------- Render ----------
 function render() {
   dateEl.textContent = state.today ? `Heute: ${state.today}` : "…";
   grid.innerHTML = "";
 
-  for (const t of state.tasks) {
+  const visibleTasks = paginate(state.tasks);
+
+  for (const t of visibleTasks) {
     const tile = document.createElement("div");
 
-    // confirm: done_today (yes today) => green/locked
-    // number_diff: achieved => green/locked permanently
     const isDone = (t.task_type === "number_diff") ? !!t.achieved : !!t.done_today;
     tile.className = "tile" + (isDone ? " done" : "");
 
@@ -179,8 +235,18 @@ function render() {
     tile.appendChild(btn);
     grid.appendChild(tile);
   }
+
+  // Fill spacers to keep 5x2 layout stable
+  const missing = PAGE_SIZE - visibleTasks.length;
+  for (let i = 0; i < missing; i++) {
+    const spacer = document.createElement("div");
+    spacer.className = "tile";
+    spacer.style.visibility = "hidden";
+    grid.appendChild(spacer);
+  }
 }
 
+// ---------- Load ----------
 async function load() {
   const res = await fetch("/api/tasks");
   const data = await res.json();
@@ -189,7 +255,10 @@ async function load() {
   render();
 }
 
+// ---------- Events ----------
 reloadBtn.addEventListener("click", load);
+prevBtn.addEventListener("click", goPrevPage);
+nextBtn.addEventListener("click", goNextPage);
 
 modalBackdrop.addEventListener("click", (e) => {
   if (e.target === modalBackdrop) closeModal();
@@ -199,14 +268,11 @@ btnNo.addEventListener("click", async () => {
   if (!activeTask) { closeModal(); return; }
 
   if (activeTask.task_type === "confirm") {
-    // "Nein" wird gespeichert, aber bleibt klickbar (nur "yes" sperrt)
     await apiConfirm(activeTask.id, "no");
     closeModal();
     await load();
     return;
   }
-
-  // number_diff: cancel
   closeModal();
 });
 
@@ -226,5 +292,56 @@ btnYes.addEventListener("click", async () => {
   await load();
 });
 
+// ---------- Swipe (Touch) ----------
+(function enableSwipe() {
+  // threshold tuning (px)
+  const MIN_X = 60;       // min horizontal distance
+  const MAX_Y = 50;       // max vertical deviation
+  const MAX_TIME = 600;   // ms
+
+  let startX = 0, startY = 0, startT = 0;
+  let tracking = false;
+
+  // Attach to grid area for best UX (keeps topbar buttons normal)
+  const target = document.getElementById("grid");
+
+  target.addEventListener("touchstart", (e) => {
+    if (!pagingEnabled()) return;
+    if (isModalOpen()) return;
+    if (!e.touches || e.touches.length !== 1) return;
+
+    const t = e.touches[0];
+    startX = t.clientX;
+    startY = t.clientY;
+    startT = Date.now();
+    tracking = true;
+  }, { passive: true });
+
+  target.addEventListener("touchend", (e) => {
+    if (!tracking) return;
+    tracking = false;
+
+    if (!pagingEnabled()) return;
+    if (isModalOpen()) return;
+
+    const dt = Date.now() - startT;
+    if (dt > MAX_TIME) return;
+
+    const changed = e.changedTouches && e.changedTouches[0];
+    if (!changed) return;
+
+    const dx = changed.clientX - startX;
+    const dy = changed.clientY - startY;
+
+    if (Math.abs(dy) > MAX_Y) return;
+    if (Math.abs(dx) < MIN_X) return;
+
+    // swipe left => next, swipe right => prev
+    if (dx < 0) goNextPage();
+    else goPrevPage();
+  }, { passive: true });
+})();
+
+// start
 load();
 setInterval(load, 60_000);

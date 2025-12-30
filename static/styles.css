@@ -8,51 +8,70 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
   padding: 10px 12px;
   background: #1b1b1b;
   border-bottom: 1px solid #2a2a2a;
+  gap: 10px;
 }
 
-#date { font-size: 18px; opacity: 0.9; }
-#reload {
-  font-size: 20px;
-  padding: 8px 12px;
+.topbar-left { display: grid; gap: 4px; }
+#date { font-size: 16px; opacity: 0.9; }
+.pageInfo { font-size: 13px; opacity: 0.75; }
+
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+
+#reload, .navBtn {
+  font-size: 18px;
+  padding: 8px 10px;
   border-radius: 12px;
   border: 1px solid #333;
   background: #222;
   color: #eee;
 }
+.navBtn:disabled { opacity: 0.4; }
 
 #grid {
   height: calc(100% - 52px);
-  padding: 12px;
+  padding: 10px;
+
+  /* 10 Tiles pro Seite: 5 Spalten x 2 Zeilen */
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+
+  overflow: hidden;
 }
 
 .tile {
-  border-radius: 18px;
+  border-radius: 14px;
   border: 1px solid #2b2b2b;
   background: #1a1a1a;
-  padding: 16px;
-  min-height: 140px;
+  padding: 10px;
+  min-height: 0;
+
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+
   touch-action: manipulation;
 }
 
 .tile .title {
-  font-size: 24px;
+  font-size: 16px;     /* kompakt für 10 Tiles */
   line-height: 1.1;
-  white-space: pre-line; /* enables \n in success_text */
+  white-space: pre-line;
 }
-.tile .meta { font-size: 16px; opacity: 0.85; margin-top: 10px; }
+
+.tile .meta {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-top: 6px;
+}
 
 .tile button {
-  margin-top: 14px;
+  margin-top: 8px;
   width: 100%;
-  font-size: 22px;
-  padding: 14px 12px;
-  border-radius: 16px;
+  font-size: 16px;
+  padding: 10px 8px;
+  border-radius: 12px;
   border: 0;
   background: #2a2a2a;
   color: #fff;
@@ -69,12 +88,13 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
 }
 
 /* number_diff metrics */
-.metrics { display: grid; gap: 6px; margin-top: 2px; }
-.metric { font-size: 22px; font-weight: 800; }
-.metric.good { color: #49d16a; }    /* green */
-.metric.bad  { color: #ff4d4d; }    /* red */
-.metric.neutral { color: #e5e5e5; } /* gray */
+.metrics { display: grid; gap: 4px; margin-top: 2px; }
+.metric { font-size: 14px; font-weight: 800; }
+.metric.good { color: #49d16a; }
+.metric.bad  { color: #ff4d4d; }
+.metric.neutral { color: #e5e5e5; }
 
+/* Modal */
 #modalBackdrop {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0.6);
@@ -82,7 +102,6 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
   align-items: center;
   justify-content: center;
 }
-
 #modalBackdrop.hidden { display: none; }
 
 #modal {
@@ -93,7 +112,7 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
   padding: 18px;
 }
 
-#modalTitle { font-size: 24px; margin-bottom: 14px; }
+#modalTitle { font-size: 22px; margin-bottom: 14px; }
 
 #modalActions {
   display: grid;
@@ -107,20 +126,10 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
   border-radius: 16px;
   border: 0;
 }
-
 .btn.primary { background: #1f6a2e; color: #fff; }
 .btn.secondary { background: #333; color: #fff; }
 
-/* inputs for number_diff modal */
+/* number_diff modal inputs */
 .modalField { margin-top: 12px; display: grid; gap: 10px; }
 .modalField label { font-size: 16px; opacity: 0.9; }
-.modalRow { display: grid; grid-template-columns: 1fr 140px; gap: 12px; align-items: center; }
-.modalRow input[type="number"] {
-  font-size: 22px;
-  padding: 10px;
-  border-radius: 12px;
-  border: 1px solid #333;
-  background: #111;
-  color: #eee;
-}
-.modalRow input[type="range"] { width: 100%; }
+.modalRow { display

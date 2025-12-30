@@ -8,8 +8,16 @@
 </head>
 <body>
   <div id="topbar">
-    <div id="date"></div>
-    <button id="reload" aria-label="Neu laden">↻</button>
+    <div class="topbar-left">
+      <div id="date"></div>
+      <div id="pageInfo" class="pageInfo"></div>
+    </div>
+
+    <div class="topbar-right">
+      <button id="prevPage" class="navBtn" aria-label="Vorherige Seite">←</button>
+      <button id="nextPage" class="navBtn" aria-label="Nächste Seite">→</button>
+      <button id="reload" aria-label="Neu laden">↻</button>
+    </div>
   </div>
 
   <main id="grid"></main>
