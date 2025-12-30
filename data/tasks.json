@@ -39,7 +39,7 @@
         "id": 5,
         "technical_name": "2026_weight",
         "task_type": "number_diff",
-        "tile_text": "Gewicht eintragen",
+        "tile_text": "Aktuelles Gewicht erfasst?",
         "success_text": "§current von $goal erreicht.\nZu erledigen bis $deadline",
         "deadline": "2026-12-31",
         "goal": 124.00,

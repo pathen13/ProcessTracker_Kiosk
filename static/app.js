@@ -1,8 +1,8 @@
 let state = { tasks: [], today: null };
 let activeTask = null;
 
-const PAGE_SIZE = 8;
-let pageIndex = parseInt(localStorage.getItem("pageIndex") || "0", 10);
+const PAGE_SIZE = 8; // 5x2 Grid
+let pageIndex = parseInt(localStorage.getItem("pageIndex") || "0", 8);
 
 const grid = document.getElementById("grid");
 const dateEl = document.getElementById("date");
@@ -164,11 +164,10 @@ function titleRowHTML(tileText, doneToday) {
   `;
 }
 
-// Number-diff title + 2-row grid requested
+// Number-diff title + 2-row grid
 function numberDiffTitleHTML(t) {
   const header = titleRowHTML(t.tile_text, !!t.done_today);
 
-  // if no logged value yet -> only header
   if (typeof t.latest_value !== "number") return header;
 
   const aVal = (typeof t.start_minus_current === "number") ? signFmt(t.start_minus_current) : "—";
@@ -242,7 +241,6 @@ function render() {
   for (const t of visibleTasks) {
     const tile = document.createElement("div");
 
-    // number_diff: green+locked when done_today OR achieved
     const isDone = (t.task_type === "number_diff")
       ? (!!t.done_today || !!t.achieved)
       : !!t.done_today;
@@ -258,143 +256,4 @@ function render() {
     tile.addEventListener("pointerdown", (e) => {
       if (actionDisabled) return;
       lastDown = { x: e.clientX, y: e.clientY };
-      triggerTapFeedback(tile, e.clientX, e.clientY);
-    });
-
-    tile.addEventListener("click", () => {
-      if (actionDisabled) return;
-      if (!lastDown) triggerTapFeedback(tile);
-
-      if (t.task_type === "number_diff") openNumberModal(t);
-      else openConfirmModal(t);
-    });
-
-    const title = document.createElement("div");
-    if (t.task_type === "number_diff") {
-      title.innerHTML = numberDiffTitleHTML(t);
-    } else {
-      title.innerHTML = titleRowHTML(t.tile_text, !!t.done_today);
-    }
-
-    const meta = document.createElement("div");
-    meta.className = "meta";
-
-    if (t.task_type === "number_diff") {
-      // ✅ Only deadline
-      meta.textContent = `Deadline: ${t.deadline}`;
-    } else {
-      if (t.done_today) meta.textContent = t.success_rendered || "";
-      else meta.textContent = `Fortschritt: ${t.current}/${Math.round(t.goal)} • Deadline: ${t.deadline}`;
-    }
-
-    tile.appendChild(title);
-    tile.appendChild(meta);
-    grid.appendChild(tile);
-  }
-
-  // Fill spacers to keep 5x2 layout stable
-  const missing = PAGE_SIZE - visibleTasks.length;
-  for (let i = 0; i < missing; i++) {
-    const spacer = document.createElement("div");
-    spacer.className = "tile";
-    spacer.style.visibility = "hidden";
-    grid.appendChild(spacer);
-  }
-}
-
-// ---------- Load ----------
-async function load() {
-  const res = await fetch("/api/tasks");
-  const data = await res.json();
-  state.today = data.today;
-  state.tasks = data.tasks;
-  render();
-}
-
-// ---------- Events ----------
-reloadBtn.addEventListener("click", load);
-prevBtn.addEventListener("click", goPrevPage);
-nextBtn.addEventListener("click", goNextPage);
-
-modalBackdrop.addEventListener("click", (e) => {
-  if (e.target === modalBackdrop) closeModal();
-});
-
-btnNo.addEventListener("click", async () => {
-  if (!activeTask) { closeModal(); return; }
-
-  if (activeTask.task_type === "confirm") {
-    await apiConfirm(activeTask.id, "no");
-    closeModal();
-    await load();
-    return;
-  }
-  closeModal();
-});
-
-btnYes.addEventListener("click", async () => {
-  if (!activeTask) return;
-
-  if (activeTask.task_type === "number_diff") {
-    if (!Number.isFinite(currentValue)) return;
-    await apiSetValue(activeTask.id, currentValue);
-    closeModal();
-    await load();
-    return;
-  }
-
-  await apiConfirm(activeTask.id, "yes");
-  closeModal();
-  await load();
-});
-
-// ---------- Swipe (Touch) ----------
-(function enableSwipe() {
-  const MIN_X = 60;
-  const MAX_Y = 50;
-  const MAX_TIME = 600;
-
-  let startX = 0, startY = 0, startT = 0;
-  let tracking = false;
-
-  const target = document.getElementById("grid");
-
-  target.addEventListener("touchstart", (e) => {
-    if (!pagingEnabled()) return;
-    if (isModalOpen()) return;
-    if (!e.touches || e.touches.length !== 1) return;
-
-    const t = e.touches[0];
-    startX = t.clientX;
-    startY = t.clientY;
-    startT = Date.now();
-    tracking = true;
-  }, { passive: true });
-
-  target.addEventListener("touchend", (e) => {
-    if (!tracking) return;
-    tracking = false;
-
-    if (!pagingEnabled()) return;
-    if (isModalOpen()) return;
-
-    const dt = Date.now() - startT;
-    if (dt > MAX_TIME) return;
-
-    const changed = e.changedTouches && e.changedTouches[0];
-    if (!changed) return;
-
-    const dx = changed.clientX - startX;
-    const dy = changed.clientY - startY;
-
-    if (Math.abs(dy) > MAX_Y) return;
-    if (Math.abs(dx) < MIN_X) return;
-
-    if (dx < 0) goNextPage();
-    else goPrevPage();
-  }, { passive: true });
-})();
-
-// start
-load();
-setInterval(load, 60_000);
+      triggerTapFee
