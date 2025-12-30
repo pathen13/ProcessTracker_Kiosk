@@ -6,12 +6,12 @@ services:
     ports:
       - "9005:9005"
 
-    # Named Volume -> Portainer-freundlich + persistent
+    # Named Volume -> Portainer-freundlich + persistent (DB/State)
     volumes:
       - processtracker_data:/data
 
-    # Optional/robust: falls dein Code DATABASE_URL o.ä. aus ENV liest
     environment:
+      - APP_TZ=Europe/Berlin
       - DATA_DIR=/data
       - TASKS_PATH=/config/tasks.json
       - DATABASE_URL=sqlite:////data/processtracker.db

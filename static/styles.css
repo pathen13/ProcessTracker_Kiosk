@@ -40,7 +40,11 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
   touch-action: manipulation;
 }
 
-.tile .title { font-size: 24px; line-height: 1.1; }
+.tile .title {
+  font-size: 24px;
+  line-height: 1.1;
+  white-space: pre-line; /* enables \n in success_text */
+}
 .tile .meta { font-size: 16px; opacity: 0.85; margin-top: 10px; }
 
 .tile button {
@@ -64,6 +68,13 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
   opacity: 0.7;
 }
 
+/* number_diff metrics */
+.metrics { display: grid; gap: 6px; margin-top: 2px; }
+.metric { font-size: 22px; font-weight: 800; }
+.metric.good { color: #49d16a; }    /* green */
+.metric.bad  { color: #ff4d4d; }    /* red */
+.metric.neutral { color: #e5e5e5; } /* gray */
+
 #modalBackdrop {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0.6);
@@ -82,10 +93,7 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
   padding: 18px;
 }
 
-#modalTitle {
-  font-size: 24px;
-  margin-bottom: 14px;
-}
+#modalTitle { font-size: 24px; margin-bottom: 14px; }
 
 #modalActions {
   display: grid;
@@ -102,3 +110,17 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
 
 .btn.primary { background: #1f6a2e; color: #fff; }
 .btn.secondary { background: #333; color: #fff; }
+
+/* inputs for number_diff modal */
+.modalField { margin-top: 12px; display: grid; gap: 10px; }
+.modalField label { font-size: 16px; opacity: 0.9; }
+.modalRow { display: grid; grid-template-columns: 1fr 140px; gap: 12px; align-items: center; }
+.modalRow input[type="number"] {
+  font-size: 22px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid #333;
+  background: #111;
+  color: #eee;
+}
+.modalRow input[type="range"] { width: 100%; }

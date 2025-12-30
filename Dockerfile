@@ -1,27 +1,27 @@
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    APP_TZ=Europe/Berlin \
+    DATA_DIR=/data \
+    TASKS_PATH=/config/tasks.json \
+    SQLALCHEMY_DATABASE_URL=sqlite:////data/processtracker.db
 
-WORKDIR /srv/app
+RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
+    && rm -rf /var/lib/apt/lists/*
 
-# Dependencies
-COPY requirements.txt /srv/app/requirements.txt
-RUN pip install --no-cache-dir -r /srv/app/requirements.txt
+WORKDIR /srv
 
-# App-Code (liegt im Repo unter ./app, im Container aber als /srv/app/* benötigt – siehe Logs /srv/app/main.py)
-COPY app/ /srv/app/
+COPY requirements.txt /srv/requirements.txt
+RUN pip install --no-cache-dir -r /srv/requirements.txt
 
-# Static + Default-Data aus dem Repo mit ins Image nehmen
-COPY static/ /srv/app/static/
-COPY data/ /srv/app/data/
+# App + static assets
+COPY app /srv/app
+COPY static /srv/static
 
-# Entrypoint, der /data + /config initialisiert und tasks.json vorbereitet
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh \
-    && mkdir -p /data /config
+# tasks.json ins Image backen -> 1-click/Portainer-robust
+RUN mkdir -p /config
+COPY data/tasks.json /config/tasks.json
 
 EXPOSE 9005
-
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "9005"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9005"]
