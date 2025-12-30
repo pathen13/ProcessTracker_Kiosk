@@ -154,7 +154,7 @@ function signFmt(x) {
   return (x >= 0 ? "+" : "") + x.toFixed(2);
 }
 
-// Title renderer with optional checkmark (only for "done today")
+// Title with optional "done today" checkmark
 function titleRowHTML(tileText, doneToday) {
   return `
     <div class="titleRow">
@@ -164,28 +164,29 @@ function titleRowHTML(tileText, doneToday) {
   `;
 }
 
+// Number-diff title + 2-row grid requested
 function numberDiffTitleHTML(t) {
-  // Always show tile_text (plus optional check if done today)
   const header = titleRowHTML(t.tile_text, !!t.done_today);
 
-  // If we have values, show metrics underneath
-  if (typeof t.latest_value === "number") {
-    const aVal = (typeof t.start_minus_current === "number") ? signFmt(t.start_minus_current) : "—";
-    const aClass = t.start_minus_current_class || "neutral";
+  // if no logged value yet -> only header
+  if (typeof t.latest_value !== "number") return header;
 
-    const bVal = (typeof t.current_minus_goal === "number") ? signFmt(t.current_minus_goal) : "—";
-    const bClass = t.current_minus_goal_class || "neutral";
+  const aVal = (typeof t.start_minus_current === "number") ? signFmt(t.start_minus_current) : "—";
+  const aClass = t.start_minus_current_class || "neutral";
 
-    return `
-      ${header}
-      <div class="metrics">
-        <div class="metric ${aClass}">Bereits geschafft: ${escapeHTML(aVal)}</div>
-        <div class="metric ${bClass}">Noch übrig: ${escapeHTML(bVal)}</div>
-      </div>
-    `;
-  }
+  const bVal = (typeof t.current_minus_goal === "number") ? signFmt(t.current_minus_goal) : "—";
+  const bClass = t.current_minus_goal_class || "neutral";
 
-  return header;
+  return `
+    ${header}
+    <div class="ndGrid">
+      <div class="ndLabel">Bereits geschafft:</div>
+      <div class="ndValue ${escapeHTML(aClass)}">${escapeHTML(aVal)}</div>
+
+      <div class="ndLabel">Noch übrig:</div>
+      <div class="ndValue ${escapeHTML(bClass)}">${escapeHTML(bVal)}</div>
+    </div>
+  `;
 }
 
 // ---------- Paging ----------
@@ -241,7 +242,7 @@ function render() {
   for (const t of visibleTasks) {
     const tile = document.createElement("div");
 
-    // ✅ number_diff: green+locked when done_today OR achieved
+    // number_diff: green+locked when done_today OR achieved
     const isDone = (t.task_type === "number_diff")
       ? (!!t.done_today || !!t.achieved)
       : !!t.done_today;
@@ -269,12 +270,9 @@ function render() {
     });
 
     const title = document.createElement("div");
-
     if (t.task_type === "number_diff") {
-      // includes tile_text + optional check + metrics
       title.innerHTML = numberDiffTitleHTML(t);
     } else {
-      // ✅ Confirm: always tile_text + optional check (done_today)
       title.innerHTML = titleRowHTML(t.tile_text, !!t.done_today);
     }
 
@@ -282,10 +280,9 @@ function render() {
     meta.className = "meta";
 
     if (t.task_type === "number_diff") {
-      const last = t.latest_day ? `Letzter Eintrag: ${t.latest_day}` : "Noch kein Eintrag";
-      meta.textContent = `${last} • Ziel: ${fmt2(t.goal)} • Deadline: ${t.deadline}`;
+      // ✅ Only deadline
+      meta.textContent = `Deadline: ${t.deadline}`;
     } else {
-      // When done today -> show success_text content in meta (as originally intended)
       if (t.done_today) meta.textContent = t.success_rendered || "";
       else meta.textContent = `Fortschritt: ${t.current}/${Math.round(t.goal)} • Deadline: ${t.deadline}`;
     }
@@ -332,7 +329,6 @@ btnNo.addEventListener("click", async () => {
     await load();
     return;
   }
-
   closeModal();
 });
 
