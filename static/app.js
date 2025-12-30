@@ -2,7 +2,7 @@ let state = { tasks: [], today: null };
 let activeTask = null;
 
 const PAGE_SIZE = 8; // 5x2 Grid
-let pageIndex = parseInt(localStorage.getItem("pageIndex") || "0", 8);
+let pageIndex = parseInt(localStorage.getItem("pageIndex") || "0", 10);
 
 const grid = document.getElementById("grid");
 const dateEl = document.getElementById("date");
