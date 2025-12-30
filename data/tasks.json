@@ -44,5 +44,23 @@
         "deadline": "2026-12-31",
         "goal": 124.00,
         "startvalue": 150.00
+    },
+    {
+        "id": 6,
+        "technical_name": "2026_cve",
+        "task_type": "confirm",
+        "tile_text": "CVE erfolgreich eingetragen?",
+        "success_text": "§current von $goal erreicht. Zu erledigen bis $deadline",
+        "deadline": "2026-12-31",
+        "goal": 1
+    },
+    {
+        "id": 7,
+        "technical_name": "2026_books",
+        "task_type": "confirm",
+        "tile_text": "Buch zuende gelesen?",
+        "success_text": "§current von $goal erreicht. Zu erledigen bis $deadline",
+        "deadline": "2026-12-31",
+        "goal": 2
     }
 ]
