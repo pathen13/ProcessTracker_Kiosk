@@ -1,462 +1,440 @@
-/* ProcessTracker Kiosk UI
- * - 2-row grid (auto columns from PAGE_SIZE)
- * - swipe paging
- * - whole-tile clickable
- * - ripple feedback
- * - achieved (laurel/trophy) when permanently completed
- */
+let state = { tasks: [], today: null };
+let activeTask = null;
 
-(() => {
-  // -------- Config --------
-  const PAGE_SIZE = Number(window.PAGE_SIZE || 8); // 8 => 4x2, 10 => 5x2
-  const ROWS = 2;
-  const COLS = Math.max(1, Math.ceil(PAGE_SIZE / ROWS));
-  const REFRESH_MS = 4000;
+const PAGE_SIZE = 8; // ✅ 4x2
+let pageIndex = parseInt(localStorage.getItem("pageIndex") || "0", 10);
 
-  // If your backend endpoints differ, change these:
-  const API = {
-    list: "/api/tasks",
-    confirm: "/api/confirm",          // POST { technical_name, value: true|false }
-    numberDiff: "/api/number-diff",   // POST { technical_name, value: number }
-  };
+const grid = document.getElementById("grid");
+const dateEl = document.getElementById("date");
+const pageInfoEl = document.getElementById("pageInfo");
 
-  // -------- DOM --------
-  const gridEl = document.getElementById("grid");
-  const pageIndicatorEl = document.getElementById("page-indicator");
-  const toastEl = document.getElementById("toast");
-  const modalEl = document.getElementById("modal");
-  const modalBackdropEl = document.getElementById("modal-backdrop");
-  const modalTitleEl = document.getElementById("modal-title");
-  const modalBodyEl = document.getElementById("modal-body");
-  const modalActionsEl = document.getElementById("modal-actions");
+const reloadBtn = document.getElementById("reload");
+const prevBtn = document.getElementById("prevPage");
+const nextBtn = document.getElementById("nextPage");
 
-  // set grid columns via CSS var
-  document.documentElement.style.setProperty("--grid-cols", String(COLS));
+const modalBackdrop = document.getElementById("modalBackdrop");
+const modalTitle = document.getElementById("modalTitle");
+const btnYes = document.getElementById("btnYes");
+const btnNo = document.getElementById("btnNo");
 
-  // -------- State --------
-  let tasks = [];
-  let page = 0;
+let currentValue = null;
 
-  // -------- Helpers --------
-  const escapeHTML = (s) => String(s ?? "")
+// ---------- Helpers ----------
+function escapeHTML(s) {
+  return String(s ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+    .replaceAll("'", "&#39;");
+}
 
-  const fmtNum = (n, digits = 2) => {
-    if (n === null || n === undefined || Number.isNaN(Number(n))) return "--";
-    return Number(n).toFixed(digits);
-  };
+function safeClass(c) {
+  return (c === "good" || c === "bad" || c === "neutral") ? c : "neutral";
+}
 
-  const fmtSigned = (n, digits = 2) => {
-    if (n === null || n === undefined || Number.isNaN(Number(n))) return "--";
-    const v = Number(n);
-    const sign = v > 0 ? "+" : ""; // keep "-" automatically
-    return `${sign}${v.toFixed(digits)}`;
-  };
+function signFmt(x) {
+  if (typeof x !== "number") return "—";
+  return (x >= 0 ? "+" : "") + x.toFixed(2);
+}
 
-  const todayISO = () => {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const da = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${da}`;
-  };
+function getSuccessText(t) {
+  // Backend liefert meist success_rendered; tasks.json ggf success_text/sucess_text
+  const s = t.success_rendered ?? t.success_text ?? t.sucess_text ?? "";
+  return String(s ?? "");
+}
 
-  const showToast = (msg) => {
-    if (!toastEl) return;
-    toastEl.textContent = msg;
-    toastEl.classList.add("show");
-    setTimeout(() => toastEl.classList.remove("show"), 1800);
-  };
+// ✅ Dauerhaft abgeschlossen / achieved
+function isAchievedTask(t) {
+  // Wenn Backend bereits achieved liefert: nutzen
+  if (typeof t.achieved === "boolean") return t.achieved;
 
-  const isDoneToday = (t) => Boolean(t.done_today ?? t.completed_today ?? t.doneToday ?? false);
-
-  // "Permanent achieved"
-  const isAchieved = (t) => {
-    // backend-provided override
-    if (typeof t.achieved === "boolean") return t.achieved;
-
-    const type = String(t.task_type || t.type || "").toLowerCase();
-
-    // count/confirm tasks
-    if (!type || type === "confirm" || type === "boolean" || type === "count") {
-      const cur = Number(t.current ?? t.current_count ?? t.progress ?? 0);
-      const goal = Number(t.goal ?? 0);
-      return goal > 0 && cur >= goal;
+  if (t.task_type === "number_diff") {
+    // Ziel erreicht wenn current <= goal
+    if (Number.isFinite(t.latest_value) && Number.isFinite(t.goal)) {
+      return t.latest_value <= t.goal;
     }
-
-    // number_diff: goal is a target weight (<=)
-    if (type === "number_diff" || type === "numberdiff") {
-      const cur = Number(t.current_value ?? t.current ?? t.last_value);
-      const goal = Number(t.goal);
-      if (Number.isNaN(cur) || Number.isNaN(goal)) return false;
-      return cur <= goal;
+    // oder falls Backend andere Felder liefert:
+    if (Number.isFinite(t.current_value) && Number.isFinite(t.goal)) {
+      return t.current_value <= t.goal;
     }
-
     return false;
-  };
+  }
 
-  const addRipple = (tileEl, clientX, clientY) => {
-    const r = document.createElement("span");
-    r.className = "ripple";
-    const rect = tileEl.getBoundingClientRect();
-    const x = (clientX ?? (rect.left + rect.width / 2)) - rect.left;
-    const y = (clientY ?? (rect.top + rect.height / 2)) - rect.top;
-    r.style.left = `${x}px`;
-    r.style.top = `${y}px`;
-    tileEl.appendChild(r);
-    r.addEventListener("animationend", () => r.remove());
-  };
+  // confirm/count: Ziel erreicht wenn current >= goal
+  if (Number.isFinite(t.current) && Number.isFinite(t.goal)) return t.current >= t.goal;
+  if (Number.isFinite(t.current_count) && Number.isFinite(t.goal)) return t.current_count >= t.goal;
 
-  // -------- Modal --------
-  const closeModal = () => {
-    if (!modalEl) return;
-    modalEl.classList.remove("open");
-    modalBackdropEl?.classList.remove("open");
-    modalTitleEl.textContent = "";
-    modalBodyEl.innerHTML = "";
-    modalActionsEl.innerHTML = "";
-  };
+  return false;
+}
 
-  const openModal = ({ title, bodyHTML, actions }) => {
-    if (!modalEl) return;
-    modalTitleEl.textContent = title || "";
-    modalBodyEl.innerHTML = bodyHTML || "";
-    modalActionsEl.innerHTML = "";
+// ---------- Tap feedback ----------
+function triggerTapFeedback(tile, clientX, clientY) {
+  tile.classList.remove("tapflash");
+  void tile.offsetWidth;
+  tile.classList.add("tapflash");
 
-    (actions || []).forEach((a) => {
-      const btn = document.createElement("button");
-      btn.className = `modal-btn ${a.variant || ""}`.trim();
-      btn.textContent = a.label;
-      btn.addEventListener("click", a.onClick);
-      modalActionsEl.appendChild(btn);
-    });
+  const rect = tile.getBoundingClientRect();
+  const x = (typeof clientX === "number") ? (clientX - rect.left) : rect.width / 2;
+  const y = (typeof clientY === "number") ? (clientY - rect.top) : rect.height / 2;
 
-    modalBackdropEl?.classList.add("open");
-    modalEl.classList.add("open");
-  };
+  const size = Math.ceil(Math.max(rect.width, rect.height) * 1.6);
+  const ripple = document.createElement("div");
+  ripple.className = "ripple";
+  ripple.style.width = `${size}px`;
+  ripple.style.height = `${size}px`;
+  ripple.style.left = `${x}px`;
+  ripple.style.top = `${y}px`;
 
-  modalBackdropEl?.addEventListener("click", closeModal);
+  tile.appendChild(ripple);
+  window.setTimeout(() => ripple.remove(), 500);
+}
 
-  // -------- API --------
-  const fetchTasks = async () => {
-    const res = await fetch(API.list, { cache: "no-store" });
-    if (!res.ok) throw new Error(`GET ${API.list} failed: ${res.status}`);
-    const data = await res.json();
-    // accept {tasks:[...]} or [...]
-    return Array.isArray(data) ? data : (data.tasks || []);
-  };
+// ---------- Modal ----------
+function closeModal() {
+  activeTask = null;
+  currentValue = null;
+  if (modalTitle) modalTitle.innerHTML = "";
+  if (btnYes) btnYes.textContent = "Ja";
+  if (btnNo) btnNo.textContent = "Nein";
+  modalBackdrop?.classList.add("hidden");
+}
 
-  const postJSON = async (url, payload) => {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`${url} failed: ${res.status} ${txt}`.trim());
-    }
-    return res.json().catch(() => ({}));
-  };
+function isModalOpen() {
+  return !modalBackdrop?.classList.contains("hidden");
+}
 
-  // -------- Render --------
-  const render = () => {
-    if (!gridEl) return;
+function openConfirmModal(task) {
+  activeTask = task;
+  if (modalTitle) modalTitle.textContent = `Wirklich "${task.tile_text}"?`;
+  if (btnNo) btnNo.textContent = "Nein";
+  if (btnYes) btnYes.textContent = "Ja";
+  modalBackdrop?.classList.remove("hidden");
+}
 
-    const totalPages = Math.max(1, Math.ceil(tasks.length / PAGE_SIZE));
-    page = Math.min(page, totalPages - 1);
+function openNumberModal(task) {
+  activeTask = task;
 
-    const start = page * PAGE_SIZE;
-    const slice = tasks.slice(start, start + PAGE_SIZE);
+  const min = 30.0;
+  const max = 200.0;
+  const step = 0.01;
 
-    gridEl.innerHTML = "";
+  const start =
+    (typeof task.latest_value === "number") ? task.latest_value :
+    ((typeof task.startvalue === "number") ? task.startvalue : 80.0);
 
-    slice.forEach((t) => {
-      const type = String(t.task_type || t.type || "").toLowerCase();
-      const doneToday = isDoneToday(t);
-      const achieved = isAchieved(t);
-      const locked = achieved || doneToday;
+  currentValue = start;
 
-      const tile = document.createElement("div");
-      tile.className = "tile";
-      if (doneToday) tile.classList.add("tile--done");
-      if (achieved) tile.classList.add("tile--achieved");
-      if (locked) tile.classList.add("tile--locked");
-
-      tile.setAttribute("role", "button");
-      tile.setAttribute("tabindex", "0");
-
-      const title = escapeHTML(t.tile_text ?? t.title_text ?? t.title ?? t.technical_name ?? "Task");
-      const successText = escapeHTML(t.success_text ?? t.sucess_text ?? "");
-
-      // header: title + checkmark if done today
-      const header = document.createElement("div");
-      header.className = "tile__header";
-      header.innerHTML = `
-        <div class="tile__title">
-          <span class="tile__titleText">${title}</span>
-          ${doneToday ? `<span class="tile__tick" aria-label="heute erledigt">✓</span>` : ``}
+  if (modalTitle) {
+    modalTitle.innerHTML = `
+      <div style="font-size:24px;margin-bottom:10px;">${escapeHTML(task.tile_text)}</div>
+      <div class="modalField">
+        <label>Aktueller Wert</label>
+        <div class="modalRow">
+          <input id="numRange" type="range" min="${min}" max="${max}" step="${step}" value="${start}">
+          <input id="numInput" type="number" step="${step}" value="${start.toFixed(2)}">
         </div>
-      `;
+        <div style="font-size:16px;opacity:.8;">Tipp: Zahlenfeld ist präziser als der Slider.</div>
+      </div>
+    `;
+  }
 
-      // body
-      const body = document.createElement("div");
-      body.className = "tile__body";
+  if (btnNo) btnNo.textContent = "Abbrechen";
+  if (btnYes) btnYes.textContent = "Speichern";
+  modalBackdrop?.classList.remove("hidden");
 
-      // Always show success_text (as requested)
-      const successLine = document.createElement("div");
-      successLine.className = "tile__success";
-      successLine.innerHTML = successText || "&nbsp;";
+  const range = document.getElementById("numRange");
+  const input = document.getElementById("numInput");
 
-      // common footer line: deadline only
-      const deadline = escapeHTML(t.deadline ?? "");
-      const footer = document.createElement("div");
-      footer.className = "tile__meta";
-      footer.innerHTML = deadline ? `Deadline: <span class="mono">${deadline}</span>` : "&nbsp;";
+  const syncFromRange = () => {
+    currentValue = parseFloat(range.value);
+    input.value = currentValue.toFixed(2);
+  };
 
-      body.appendChild(successLine);
+  const syncFromInput = () => {
+    const v = parseFloat(input.value);
+    if (!Number.isFinite(v)) return;
+    currentValue = v;
+    const clamped = Math.min(max, Math.max(min, v));
+    range.value = clamped.toFixed(2);
+  };
 
-      // type-specific content
-      if (!type || type === "confirm" || type === "boolean" || type === "count") {
-        const cur = Number(t.current ?? t.current_count ?? t.progress ?? 0);
-        const goal = Number(t.goal ?? 0);
+  range?.addEventListener("input", syncFromRange);
+  input?.addEventListener("input", syncFromInput);
+}
 
-        const progress = document.createElement("div");
-        progress.className = "tile__progress";
-        progress.innerHTML = `
-          <div class="tile__progressMain">
-            <span class="mono">${escapeHTML(String(cur))}</span>
-            <span class="sep">/</span>
-            <span class="mono">${escapeHTML(String(goal))}</span>
-          </div>
-          ${achieved ? `<div class="tile__badge">Ziel erreicht</div>` : ``}
-        `;
-        body.appendChild(progress);
-        body.appendChild(footer);
-      } else if (type === "number_diff" || type === "numberdiff") {
-        const startVal = Number(t.startvalue ?? t.start_value ?? t.start ?? NaN);
-        const curVal = Number(t.current_value ?? t.current ?? t.last_value ?? NaN);
-        const goalVal = Number(t.goal ?? NaN);
+// ---------- API ----------
+async function apiConfirm(taskId, answer) {
+  await fetch(`/api/tasks/${taskId}/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ answer })
+  });
+}
 
-        const a = (!Number.isNaN(startVal) && !Number.isNaN(curVal)) ? (startVal - curVal) : null; // start - current
-        const b = (!Number.isNaN(curVal) && !Number.isNaN(goalVal)) ? (curVal - goalVal) : null;   // current - goal
+async function apiSetValue(taskId, value) {
+  const res = await fetch(`/api/tasks/${taskId}/value`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value })
+  });
 
-        const aClass = (a === null) ? "" : (a >= 0 ? "val--good" : "val--bad"); // weight loss => good
-        const bClass = (b === null) ? "" : (b <= 0 ? "val--good" : "val--bad"); // <=0 means reached/under goal
+  if (!res.ok) {
+    const msg = await res.text().catch(() => "");
+    alert(`Speichern fehlgeschlagen: ${msg}`);
+  }
+}
 
-        const kv = document.createElement("div");
-        kv.className = "kv";
-        kv.innerHTML = `
-          <div class="k">Bereits geschafft:</div>
-          <div class="v ${aClass} mono">${escapeHTML(fmtSigned(a))}</div>
+// ---------- Title helpers ----------
+function titleRowHTML(tileText, doneToday) {
+  return `
+    <div class="titleRow">
+      <div class="titleText">${escapeHTML(tileText)}</div>
+      ${doneToday ? `<div class="check">✓</div>` : ``}
+    </div>
+  `;
+}
 
-          <div class="k">Noch übrig:</div>
-          <div class="v ${bClass} mono">${escapeHTML(fmtSigned(b))}</div>
-        `;
-        body.appendChild(kv);
-        body.appendChild(footer);
-      } else {
-        const unknown = document.createElement("div");
-        unknown.className = "tile__meta";
-        unknown.textContent = `Unbekannter task_type: ${type}`;
-        body.appendChild(unknown);
-      }
+function numberDiffTitleHTML(t) {
+  const header = titleRowHTML(t.tile_text, !!t.done_today);
 
-      tile.appendChild(header);
-      tile.appendChild(body);
+  // wenn noch kein Wert vorhanden ist, nur header
+  const latest =
+    (typeof t.latest_value === "number") ? t.latest_value :
+    ((typeof t.current_value === "number") ? t.current_value : null);
 
-      // interactions
-      const onActivate = (ev) => {
-        if (locked) {
-          addRipple(tile, ev?.clientX, ev?.clientY);
-          return;
-        }
+  if (typeof latest !== "number") return header;
 
-        addRipple(tile, ev?.clientX, ev?.clientY);
+  const aVal = (typeof t.start_minus_current === "number")
+    ? signFmt(t.start_minus_current)
+    : (Number.isFinite(t.startvalue) ? signFmt(t.startvalue - latest) : "—");
 
-        const tType = String(t.task_type || t.type || "").toLowerCase();
-        if (!tType || tType === "confirm" || tType === "boolean" || tType === "count") {
-          openModal({
-            title: title,
-            bodyHTML: `<div class="modal-text">Wirklich erledigt?</div>`,
-            actions: [
-              {
-                label: "Nein",
-                variant: "secondary",
-                onClick: () => closeModal(),
-              },
-              {
-                label: "Ja",
-                variant: "primary",
-                onClick: async () => {
-                  try {
-                    await postJSON(API.confirm, {
-                      technical_name: t.technical_name || t.id || t.ID,
-                      value: true,
-                      date: todayISO(),
-                    });
-                    closeModal();
-                    showToast("Gespeichert ✓");
-                    await refreshNow();
-                  } catch (e) {
-                    closeModal();
-                    showToast("Fehler beim Speichern");
-                    console.error(e);
-                  }
-                },
-              },
-            ],
-          });
-        } else if (tType === "number_diff" || tType === "numberdiff") {
-          const startVal = Number(t.startvalue ?? t.start_value ?? t.start ?? 0);
-          const curVal = Number(t.current_value ?? t.current ?? t.last_value ?? startVal);
+  const bVal = (typeof t.current_minus_goal === "number")
+    ? signFmt(t.current_minus_goal)
+    : (Number.isFinite(t.goal) ? signFmt(latest - t.goal) : "—");
 
-          // slider UI
-          const id = "nd-slider";
-          openModal({
-            title: title,
-            bodyHTML: `
-              <div class="modal-text">Aktuellen Wert eintragen</div>
-              <div class="slider-wrap">
-                <input id="${id}" type="range" min="0" max="300" step="0.01" value="${escapeHTML(String(curVal))}">
-                <div class="slider-value mono" id="${id}-val">${escapeHTML(fmtNum(curVal))}</div>
-                <div class="slider-hint">Start: <span class="mono">${escapeHTML(fmtNum(startVal))}</span></div>
-              </div>
-            `,
-            actions: [
-              { label: "Abbrechen", variant: "secondary", onClick: () => closeModal() },
-              {
-                label: "Speichern",
-                variant: "primary",
-                onClick: async () => {
-                  try {
-                    const slider = document.getElementById(id);
-                    const value = Number(slider?.value);
-                    await postJSON(API.numberDiff, {
-                      technical_name: t.technical_name || t.id || t.ID,
-                      value,
-                      date: todayISO(),
-                    });
-                    closeModal();
-                    showToast("Gespeichert ✓");
-                    await refreshNow();
-                  } catch (e) {
-                    closeModal();
-                    showToast("Fehler beim Speichern");
-                    console.error(e);
-                  }
-                },
-              },
-            ],
-          });
+  const aNum = (typeof t.start_minus_current === "number")
+    ? t.start_minus_current
+    : (Number.isFinite(t.startvalue) ? (t.startvalue - latest) : null);
 
-          // live update
-          setTimeout(() => {
-            const slider = document.getElementById(id);
-            const out = document.getElementById(`${id}-val`);
-            if (slider && out) {
-              slider.addEventListener("input", () => {
-                out.textContent = fmtNum(slider.value);
-              });
-            }
-          }, 0);
-        } else {
-          showToast("Unbekannter Task-Typ");
-        }
-      };
+  const bNum = (typeof t.current_minus_goal === "number")
+    ? t.current_minus_goal
+    : (Number.isFinite(t.goal) ? (latest - t.goal) : null);
 
-      tile.addEventListener("pointerdown", (ev) => {
-        // slight highlight immediately
-        tile.classList.add("tile--press");
-        setTimeout(() => tile.classList.remove("tile--press"), 160);
-      });
+  const aClass = safeClass(t.start_minus_current_class || (aNum == null ? "neutral" : (aNum >= 0 ? "good" : "bad")));
+  const bClass = safeClass(t.current_minus_goal_class || (bNum == null ? "neutral" : (bNum <= 0 ? "good" : "bad")));
 
-      tile.addEventListener("click", onActivate);
-      tile.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onActivate(e);
-        }
-      });
+  return `
+    ${header}
+    <div class="ndGrid">
+      <div class="ndLabel">Bereits geschafft:</div>
+      <div class="ndValue ${aClass}">${escapeHTML(aVal)}</div>
 
-      gridEl.appendChild(tile);
+      <div class="ndLabel">Noch übrig:</div>
+      <div class="ndValue ${bClass}">${escapeHTML(bVal)}</div>
+    </div>
+  `;
+}
+
+// ---------- Paging ----------
+function pagingEnabled() { return state.tasks.length > PAGE_SIZE; }
+function totalPages() { return Math.max(1, Math.ceil(state.tasks.length / PAGE_SIZE)); }
+
+function clampPageIndex() {
+  const tp = totalPages();
+  if (pageIndex < 0) pageIndex = 0;
+  if (pageIndex > tp - 1) pageIndex = tp - 1;
+  localStorage.setItem("pageIndex", String(pageIndex));
+}
+
+function goPrevPage() {
+  if (!pagingEnabled()) return;
+  pageIndex -= 1;
+  clampPageIndex();
+  render();
+}
+function goNextPage() {
+  if (!pagingEnabled()) return;
+  pageIndex += 1;
+  clampPageIndex();
+  render();
+}
+
+function paginate(allTasks) {
+  clampPageIndex();
+  const start = pageIndex * PAGE_SIZE;
+  const slice = allTasks.slice(start, start + PAGE_SIZE);
+
+  const enabled = allTasks.length > PAGE_SIZE;
+  if (prevBtn) prevBtn.disabled = !enabled || pageIndex === 0;
+  if (nextBtn) nextBtn.disabled = !enabled || pageIndex >= totalPages() - 1;
+  if (pageInfoEl) pageInfoEl.textContent = enabled ? `Seite ${pageIndex + 1}/${totalPages()}` : "";
+
+  return slice;
+}
+
+// ---------- Render ----------
+function render() {
+  if (dateEl) dateEl.textContent = state.today ? `Heute: ${state.today}` : "…";
+  if (!grid) return;
+
+  grid.innerHTML = "";
+
+  const visibleTasks = paginate(state.tasks);
+
+  for (const t of visibleTasks) {
+    const tile = document.createElement("div");
+
+    const achieved = isAchievedTask(t);
+    const doneToday = !!t.done_today;
+
+    // ✅ dauerhaft gesperrt wenn achieved
+    const actionDisabled = achieved ? true : doneToday;
+
+    tile.className =
+      "tile" +
+      (doneToday ? " done" : "") +
+      (achieved ? " achieved" : "") +
+      (!actionDisabled ? " clickable" : "");
+
+    let lastDown = null;
+
+    tile.addEventListener("pointerdown", (e) => {
+      if (actionDisabled) return;
+      lastDown = { x: e.clientX, y: e.clientY };
+      triggerTapFeedback(tile, e.clientX, e.clientY);
     });
 
-    // page indicator
-    if (pageIndicatorEl) {
-      pageIndicatorEl.textContent = `${page + 1} / ${totalPages}`;
+    tile.addEventListener("click", () => {
+      if (actionDisabled) return;
+      if (!lastDown) triggerTapFeedback(tile);
+
+      if (t.task_type === "number_diff") openNumberModal(t);
+      else openConfirmModal(t);
+    });
+
+    const title = document.createElement("div");
+    if (t.task_type === "number_diff") {
+      title.innerHTML = numberDiffTitleHTML(t);
+    } else {
+      title.innerHTML = titleRowHTML(t.tile_text, doneToday);
     }
-  };
 
-  // -------- Paging (swipe) --------
-  let swipe = { active: false, x0: 0, y0: 0, dx: 0, dy: 0 };
+    const meta = document.createElement("div");
+    meta.className = "meta";
 
-  const goPage = (dir) => {
-    const totalPages = Math.max(1, Math.ceil(tasks.length / PAGE_SIZE));
-    const next = Math.min(totalPages - 1, Math.max(0, page + dir));
-    if (next === page) return;
+    // ✅ jetzt IMMER success_text / success_rendered anzeigen (auch number_diff)
+    meta.textContent = getSuccessText(t);
 
-    // animate
-    gridEl?.classList.remove("slide-left", "slide-right");
-    gridEl?.classList.add(dir > 0 ? "slide-left" : "slide-right");
-    setTimeout(() => gridEl?.classList.remove("slide-left", "slide-right"), 220);
+    tile.appendChild(title);
+    tile.appendChild(meta);
+    grid.appendChild(tile);
+  }
 
-    page = next;
-    render();
-  };
+  // spacers for stable 4x2 layout
+  const missing = PAGE_SIZE - visibleTasks.length;
+  for (let i = 0; i < missing; i++) {
+    const spacer = document.createElement("div");
+    spacer.className = "tile";
+    spacer.style.visibility = "hidden";
+    grid.appendChild(spacer);
+  }
+}
 
-  const bindSwipe = () => {
-    if (!gridEl) return;
+// ---------- Load ----------
+async function load() {
+  const res = await fetch("/api/tasks", { cache: "no-store" });
+  const data = await res.json();
+  state.today = data.today;
+  state.tasks = data.tasks;
+  render();
+}
 
-    gridEl.addEventListener("pointerdown", (e) => {
-      swipe.active = true;
-      swipe.x0 = e.clientX;
-      swipe.y0 = e.clientY;
-      swipe.dx = 0;
-      swipe.dy = 0;
-      gridEl.setPointerCapture?.(e.pointerId);
-    });
+// ---------- Events ----------
+reloadBtn?.addEventListener("click", load);
+prevBtn?.addEventListener("click", goPrevPage);
+nextBtn?.addEventListener("click", goNextPage);
 
-    gridEl.addEventListener("pointermove", (e) => {
-      if (!swipe.active) return;
-      swipe.dx = e.clientX - swipe.x0;
-      swipe.dy = e.clientY - swipe.y0;
-    });
+modalBackdrop?.addEventListener("click", (e) => {
+  if (e.target === modalBackdrop) closeModal();
+});
 
-    const end = () => {
-      if (!swipe.active) return;
-      swipe.active = false;
+btnNo?.addEventListener("click", async () => {
+  if (!activeTask) { closeModal(); return; }
 
-      const ax = Math.abs(swipe.dx);
-      const ay = Math.abs(swipe.dy);
+  if (activeTask.task_type === "confirm") {
+    await apiConfirm(activeTask.id, "no");
+    closeModal();
+    await load();
+    return;
+  }
+  closeModal();
+});
 
-      // horizontal swipe threshold
-      if (ax > 60 && ax > ay * 1.2) {
-        goPage(swipe.dx < 0 ? +1 : -1);
-      }
-    };
+btnYes?.addEventListener("click", async () => {
+  if (!activeTask) return;
 
-    gridEl.addEventListener("pointerup", end);
-    gridEl.addEventListener("pointercancel", end);
-  };
+  if (activeTask.task_type === "number_diff") {
+    if (!Number.isFinite(currentValue)) return;
+    await apiSetValue(activeTask.id, currentValue);
+    closeModal();
+    await load();
+    return;
+  }
 
-  // -------- Refresh loop --------
-  const refreshNow = async () => {
-    try {
-      tasks = await fetchTasks();
-      render();
-    } catch (e) {
-      console.error(e);
-      showToast("Fehler: Tasks laden");
-    }
-  };
+  await apiConfirm(activeTask.id, "yes");
+  closeModal();
+  await load();
+});
 
-  // -------- Init --------
-  bindSwipe();
-  refreshNow();
-  setInterval(refreshNow, REFRESH_MS);
+// ---------- Swipe ----------
+(function enableSwipe() {
+  const MIN_X = 60;
+  const MAX_Y = 50;
+  const MAX_TIME = 600;
+
+  let startX = 0, startY = 0, startT = 0;
+  let tracking = false;
+
+  const target = document.getElementById("grid");
+  if (!target) return;
+
+  target.addEventListener("touchstart", (e) => {
+    if (!pagingEnabled()) return;
+    if (isModalOpen()) return;
+    if (!e.touches || e.touches.length !== 1) return;
+
+    const t = e.touches[0];
+    startX = t.clientX;
+    startY = t.clientY;
+    startT = Date.now();
+    tracking = true;
+  }, { passive: true });
+
+  target.addEventListener("touchend", (e) => {
+    if (!tracking) return;
+    tracking = false;
+
+    if (!pagingEnabled()) return;
+    if (isModalOpen()) return;
+
+    const dt = Date.now() - startT;
+    if (dt > MAX_TIME) return;
+
+    const changed = e.changedTouches && e.changedTouches[0];
+    if (!changed) return;
+
+    const dx = changed.clientX - startX;
+    const dy = changed.clientY - startY;
+
+    if (Math.abs(dy) > MAX_Y) return;
+    if (Math.abs(dx) < MIN_X) return;
+
+    if (dx < 0) goNextPage();
+    else goPrevPage();
+  }, { passive: true });
 })();
+
+// start
+load();
+setInterval(load, 60_000);
