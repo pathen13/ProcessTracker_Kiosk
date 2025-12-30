@@ -49,7 +49,7 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
 
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start; /* ohne Button: mehr Platz oben */
 
   touch-action: manipulation;
   user-select: none;
@@ -67,30 +67,13 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
 .tile .meta {
   font-size: 12px;
   opacity: 0.85;
-  margin-top: 6px;
-}
-
-/* Der Button ist nur noch Optik/Label – Klick geht immer an die ganze Kachel */
-.tile button {
   margin-top: 8px;
-  width: 100%;
-  font-size: 16px;
-  padding: 10px 8px;
-  border-radius: 12px;
-  border: 0;
-  background: #2a2a2a;
-  color: #fff;
-  pointer-events: none;  /* <- wichtig */
 }
 
+/* Status */
 .tile.done {
   background: #0f2a14;
   border-color: #1f6a2e;
-}
-
-.tile.done button {
-  background: #1f6a2e;
-  opacity: 0.7;
 }
 
 /* number_diff metrics */
