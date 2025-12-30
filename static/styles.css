@@ -52,10 +52,14 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
   justify-content: space-between;
 
   touch-action: manipulation;
+  user-select: none;
 }
 
+.tile.clickable { cursor: pointer; }
+.tile.clickable:active { transform: scale(0.995); }
+
 .tile .title {
-  font-size: 16px;     /* kompakt für 10 Tiles */
+  font-size: 16px;
   line-height: 1.1;
   white-space: pre-line;
 }
@@ -66,6 +70,7 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
   margin-top: 6px;
 }
 
+/* Der Button ist nur noch Optik/Label – Klick geht immer an die ganze Kachel */
 .tile button {
   margin-top: 8px;
   width: 100%;
@@ -75,6 +80,7 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
   border: 0;
   background: #2a2a2a;
   color: #fff;
+  pointer-events: none;  /* <- wichtig */
 }
 
 .tile.done {
@@ -132,4 +138,13 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
 /* number_diff modal inputs */
 .modalField { margin-top: 12px; display: grid; gap: 10px; }
 .modalField label { font-size: 16px; opacity: 0.9; }
-.modalRow { display
+.modalRow { display: grid; grid-template-columns: 1fr 140px; gap: 12px; align-items: center; }
+.modalRow input[type="number"] {
+  font-size: 22px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid #333;
+  background: #111;
+  color: #eee;
+}
+.modalRow input[type="range"] { width: 100%; }

@@ -194,11 +194,19 @@ function render() {
     const tile = document.createElement("div");
 
     const isDone = (t.task_type === "number_diff") ? !!t.achieved : !!t.done_today;
-    tile.className = "tile" + (isDone ? " done" : "");
+    const actionDisabled = (t.task_type === "number_diff") ? (!!t.achieved || !!t.done_today) : !!t.done_today;
+
+    tile.className = "tile" + (isDone ? " done" : "") + (!actionDisabled ? " clickable" : "");
+
+    // Ganze Kachel anklickbar:
+    tile.addEventListener("click", () => {
+      if (actionDisabled) return;
+      if (t.task_type === "number_diff") openNumberModal(t);
+      else openConfirmModal(t);
+    });
 
     const title = document.createElement("div");
     title.className = "title";
-
     if (t.task_type === "number_diff") {
       title.innerHTML = numberDiffTitleHTML(t);
     } else {
@@ -207,7 +215,6 @@ function render() {
 
     const meta = document.createElement("div");
     meta.className = "meta";
-
     if (t.task_type === "number_diff") {
       const last = t.latest_day ? `Letzter Eintrag: ${t.latest_day}` : "Noch kein Eintrag";
       meta.textContent = `${last} • Ziel: ${fmt2(t.goal)} • Deadline: ${t.deadline}`;
@@ -215,19 +222,14 @@ function render() {
       meta.textContent = `Fortschritt: ${t.current}/${Math.round(t.goal)} • Deadline: ${t.deadline}`;
     }
 
+    // Button bleibt als "Label", ist aber nicht mehr interaktiv (CSS pointer-events:none)
     const btn = document.createElement("button");
-
     if (t.task_type === "number_diff") {
       if (t.achieved) btn.textContent = "Ziel erreicht";
       else if (t.done_today) btn.textContent = "Eingetragen";
       else btn.textContent = "Eintragen";
-
-      btn.disabled = !!t.achieved || !!t.done_today;
-      btn.addEventListener("click", () => openNumberModal(t));
     } else {
       btn.textContent = t.done_today ? "Erledigt" : "Antippen";
-      btn.disabled = !!t.done_today;
-      btn.addEventListener("click", () => openConfirmModal(t));
     }
 
     tile.appendChild(title);
@@ -273,6 +275,7 @@ btnNo.addEventListener("click", async () => {
     await load();
     return;
   }
+
   closeModal();
 });
 
@@ -294,15 +297,13 @@ btnYes.addEventListener("click", async () => {
 
 // ---------- Swipe (Touch) ----------
 (function enableSwipe() {
-  // threshold tuning (px)
-  const MIN_X = 60;       // min horizontal distance
-  const MAX_Y = 50;       // max vertical deviation
-  const MAX_TIME = 600;   // ms
+  const MIN_X = 60;
+  const MAX_Y = 50;
+  const MAX_TIME = 600;
 
   let startX = 0, startY = 0, startT = 0;
   let tracking = false;
 
-  // Attach to grid area for best UX (keeps topbar buttons normal)
   const target = document.getElementById("grid");
 
   target.addEventListener("touchstart", (e) => {
@@ -336,7 +337,6 @@ btnYes.addEventListener("click", async () => {
     if (Math.abs(dy) > MAX_Y) return;
     if (Math.abs(dx) < MIN_X) return;
 
-    // swipe left => next, swipe right => prev
     if (dx < 0) goNextPage();
     else goPrevPage();
   }, { passive: true });
