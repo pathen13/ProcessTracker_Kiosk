@@ -49,14 +49,52 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
 
   display: flex;
   flex-direction: column;
-  justify-content: flex-start; /* ohne Button: mehr Platz oben */
+  justify-content: flex-start;
 
   touch-action: manipulation;
   user-select: none;
+
+  /* needed for ripple */
+  position: relative;
+  overflow: hidden;
+
+  /* small visual stability */
+  transform: translateZ(0);
 }
 
 .tile.clickable { cursor: pointer; }
 .tile.clickable:active { transform: scale(0.995); }
+
+/* Tap flash feedback */
+.tile.tapflash::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.08);
+  opacity: 0;
+  animation: tapflash 160ms ease-out;
+  pointer-events: none;
+}
+@keyframes tapflash {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Ripple */
+.ripple {
+  position: absolute;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.18);
+  transform: translate(-50%, -50%) scale(0);
+  animation: ripple 420ms ease-out forwards;
+  pointer-events: none;
+}
+@keyframes ripple {
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
+}
 
 .tile .title {
   font-size: 16px;
@@ -70,7 +108,7 @@ html, body { height: 100%; margin: 0; font-family: system-ui, Arial, sans-serif;
   margin-top: 8px;
 }
 
-/* Status */
+/* Status: "done" = grün */
 .tile.done {
   background: #0f2a14;
   border-color: #1f6a2e;
