@@ -282,10 +282,12 @@ function render() {
     meta.className = "meta";
 
     if (t.task_type === "number_diff") {
-      // only deadline
-      meta.textContent = `Deadline: ${t.deadline}`;
+      // ✅ success_text (rendered by backend) instead of static "Deadline: ..."
+      meta.textContent = t.success_rendered || "";
+      // optional fallback if empty:
+      if (!meta.textContent.trim()) meta.textContent = `Deadline: ${t.deadline}`;
     } else {
-      // ✅ always show success text
+      // always show success text
       meta.textContent = t.success_rendered || "";
     }
 

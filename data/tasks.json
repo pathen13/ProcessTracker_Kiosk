@@ -40,7 +40,7 @@
         "technical_name": "2026_weight",
         "task_type": "number_diff",
         "tile_text": "Aktuelles Gewicht erfasst?",
-        "success_text": "§current von $goal erreicht.\nZu erledigen bis $deadline",
+        "success_text": "Zu erledigen bis $deadline",
         "deadline": "2026-12-31",
         "goal": 124.0,
         "startvalue": 150.0
