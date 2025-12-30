@@ -1,7 +1,7 @@
 let state = { tasks: [], today: null };
 let activeTask = null;
 
-const PAGE_SIZE = 8; // ✅ 4x2
+const PAGE_SIZE = 8; // ✅ 4x2 x
 let pageIndex = parseInt(localStorage.getItem("pageIndex") || "0", 10);
 
 const grid = document.getElementById("grid");
