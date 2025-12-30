@@ -60,8 +60,8 @@ html, body {
   touch-action: manipulation;
   user-select: none;
 
-  position: relative; /* ripple */
-  overflow: hidden;   /* ripple */
+  position: relative; /* ripple + overlays */
+  overflow: hidden;   /* ripple + overlays */
   transform: translateZ(0);
 }
 
@@ -137,7 +137,7 @@ html, body {
 .ndValue {
   font-size: 16px;
   font-weight: 900;
-  justify-self: start; /* values start aligned */
+  justify-self: start;
 }
 
 /* Value coloring */
@@ -153,10 +153,32 @@ html, body {
   white-space: pre-line;
 }
 
-/* Status: grün */
+/* Status: heute erledigt (grün) */
 .tile.done {
   background: #0f2a14;
   border-color: #1f6a2e;
+}
+
+/* ✅ Status: dauerhaft erfüllt (Lorbeerkranz + gold) */
+.tile.achieved {
+  background: #1a160b;
+  border-color: #d8b25a;
+  box-shadow: 0 0 0 1px rgba(216,178,90,0.25) inset;
+}
+
+/* Lorbeerkranz als SVG Overlay */
+.tile.achieved::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 12px;
+  pointer-events: none;
+  opacity: 0.9;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  /* inline SVG (gold laurel wreath) */
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20200%20200%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23d8b25a%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M62%20162%20C30%20122%2030%2078%2062%2038%22/%3E%3Cpath%20d%3D%22M138%20162%20C170%20122%20170%2078%20138%2038%22/%3E%3C/g%3E%3Cg%20fill%3D%22%23d8b25a%22%20opacity%3D%220.95%22%3E%3Cellipse%20cx%3D%2256%22%20cy%3D%22150%22%20rx%3D%226%22%20ry%3D%2211%22%20transform%3D%22rotate(-25%2056%20150)%22/%3E%3Cellipse%20cx%3D%2246%22%20cy%3D%22132%22%20rx%3D%226%22%20ry%3D%2211%22%20transform%3D%22rotate(-35%2046%20132)%22/%3E%3Cellipse%20cx%3D%2240%22%20cy%3D%22112%22%20rx%3D%226%22%20ry%3D%2211%22%20transform%3D%22rotate(-45%2040%20112)%22/%3E%3Cellipse%20cx%3D%2240%22%20cy%3D%2288%22%20rx%3D%226%22%20ry%3D%2211%22%20transform%3D%22rotate(-55%2040%2088)%22/%3E%3Cellipse%20cx%3D%2246%22%20cy%3D%2268%22%20rx%3D%226%22%20ry%3D%2211%22%20transform%3D%22rotate(-65%2046%2068)%22/%3E%3Cellipse%20cx%3D%2256%22%20cy%3D%2250%22%20rx%3D%226%22%20ry%3D%2211%22%20transform%3D%22rotate(-75%2056%2050)%22/%3E%3Cellipse%20cx%3D%22144%22%20cy%3D%22150%22%20rx%3D%226%22%20ry%3D%2211%22%20transform%3D%22rotate(25%20144%20150)%22/%3E%3Cellipse%20cx%3D%22154%22%20cy%3D%22132%22%20rx%3D%226%22%20ry%3D%2211%22%20transform%3D%22rotate(35%20154%20132)%22/%3E%3Cellipse%20cx%3D%22160%22%20cy%3D%22112%22%20rx%3D%226%22%20ry%3D%2211%22%20transform%3D%22rotate(45%20160%20112)%22/%3E%3Cellipse%20cx%3D%22160%22%20cy%3D%2288%22%20rx%3D%226%22%20ry%3D%2211%22%20transform%3D%22rotate(55%20160%2088)%22/%3E%3Cellipse%20cx%3D%22154%22%20cy%3D%2268%22%20rx%3D%226%22%20ry%3D%2211%22%20transform%3D%22rotate(65%20154%2068)%22/%3E%3Cellipse%20cx%3D%22144%22%20cy%3D%2250%22%20rx%3D%226%22%20ry%3D%2211%22%20transform%3D%22rotate(75%20144%2050)%22/%3E%3C/g%3E%3C/svg%3E");
 }
 
 /* Modal */

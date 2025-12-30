@@ -33,10 +33,21 @@ function safeClass(c) {
   return (c === "good" || c === "bad" || c === "neutral") ? c : "neutral";
 }
 
+/**
+ * ✅ "Dauerhaft erfüllt" Regel:
+ * - confirm: current >= goal
+ * - number_diff: achieved (Backend setzt achieved, wenn Ziel erreicht/unterschritten)
+ */
+function isAchievedTask(t) {
+  if (t.task_type === "number_diff") return !!t.achieved;
+  if (typeof t.current === "number" && typeof t.goal === "number") return t.current >= t.goal;
+  return !!t.achieved;
+}
+
 // ---------- Tap feedback ----------
 function triggerTapFeedback(tile, clientX, clientY) {
   tile.classList.remove("tapflash");
-  void tile.offsetWidth; // restart animation
+  void tile.offsetWidth;
   tile.classList.add("tapflash");
 
   const rect = tile.getBoundingClientRect();
@@ -154,7 +165,6 @@ function signFmt(x) {
   return (x >= 0 ? "+" : "") + x.toFixed(2);
 }
 
-// Title with optional "done today" checkmark
 function titleRowHTML(tileText, doneToday) {
   return `
     <div class="titleRow">
@@ -164,7 +174,6 @@ function titleRowHTML(tileText, doneToday) {
   `;
 }
 
-// Number-diff: header + requested 2x2 grid
 function numberDiffTitleHTML(t) {
   const header = titleRowHTML(t.tile_text, !!t.done_today);
 
@@ -238,22 +247,26 @@ function render() {
   if (!grid) return;
 
   grid.innerHTML = "";
-
   const visibleTasks = paginate(state.tasks);
 
   for (const t of visibleTasks) {
     const tile = document.createElement("div");
 
-    // number_diff: green+locked when done_today OR achieved
-    const isDone = (t.task_type === "number_diff")
-      ? (!!t.done_today || !!t.achieved)
-      : !!t.done_today;
+    const achieved = isAchievedTask(t);
 
-    const actionDisabled = (t.task_type === "number_diff")
-      ? (!!t.done_today || !!t.achieved)
-      : !!t.done_today;
+    // done_today = grün; achieved = Lorbeer + dauerhaft gesperrt
+    const isDoneToday = !!t.done_today;
 
-    tile.className = "tile" + (isDone ? " done" : "") + (!actionDisabled ? " clickable" : "");
+    // ✅ dauerhafte Sperre, wenn achieved
+    const actionDisabled = achieved
+      ? true
+      : (t.task_type === "number_diff" ? isDoneToday : isDoneToday);
+
+    tile.className =
+      "tile" +
+      (isDoneToday ? " done" : "") +
+      (achieved ? " achieved" : "") +
+      (!actionDisabled ? " clickable" : "");
 
     let lastDown = null;
 
@@ -275,21 +288,14 @@ function render() {
     if (t.task_type === "number_diff") {
       title.innerHTML = numberDiffTitleHTML(t);
     } else {
-      title.innerHTML = titleRowHTML(t.tile_text, !!t.done_today);
+      title.innerHTML = titleRowHTML(t.tile_text, isDoneToday);
     }
 
     const meta = document.createElement("div");
     meta.className = "meta";
 
-    if (t.task_type === "number_diff") {
-      // ✅ success_text (rendered by backend) instead of static "Deadline: ..."
-      meta.textContent = t.success_rendered || "";
-      // optional fallback if empty:
-      if (!meta.textContent.trim()) meta.textContent = `Deadline: ${t.deadline}`;
-    } else {
-      // always show success text
-      meta.textContent = t.success_rendered || "";
-    }
+    // ✅ success_text (rendered) anzeigen (für beide Typen)
+    meta.textContent = t.success_rendered || "";
 
     tile.appendChild(title);
     tile.appendChild(meta);
