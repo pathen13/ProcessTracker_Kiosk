@@ -62,5 +62,14 @@
         "success_text": "§current von $goal erreicht.\nZu erledigen bis $deadline",
         "deadline": "2026-12-31",
         "goal": 2
+    },
+  {
+        "id": 8,
+        "technical_name": "2026_linux",
+        "task_type": "confirm",
+        "tile_text": "Heute (privat) nur Linux benutzt?",
+        "success_text": "§current von $goal erreicht.\nZu erledigen bis $deadline",
+        "deadline": "2026-12-31",
+        "goal": 26
     }
 ]
